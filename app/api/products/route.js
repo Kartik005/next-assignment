@@ -46,3 +46,8 @@ export async function POST(request) {
         {status: 201} // 201 created
     );
 }
+
+export async function GET() {   // client component can't interact with server directly so we make a new endpoint
+    const products = getProducts();
+    return NextResponse.json(products);
+}

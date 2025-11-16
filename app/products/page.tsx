@@ -27,9 +27,9 @@ const ProductListPage = async () => {
     <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 flex items-center justify-center">
       <div className="flex justify-center items-center fit-content flex-wrap gap-4 p-4">
         {productList.length &&
-          productList.map((product) => (
+          productList.map((product : Product) => (
             <Link href={`/products/${product.id}`} key={product.id}>
-              <ProductCard product={product} id={product.id}/>
+              <ProductCard product={product}/>
             </Link>
           ))}
       </div>
