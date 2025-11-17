@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { memo } from "react";
+import ProductDetailClient from "./ProductDetailClient";
+import { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 interface Product {
   id: number;
@@ -14,6 +17,26 @@ interface Product {
   };
 }
 
+
+async function getProduct(id: string): Promise<Product | null> {
+  try {
+    const response = await fetch(
+      `https://fakestoreapi.com/products/${id}`,
+      {
+        method: "GET",
+      }
+    );
+    if(!response.ok) return null;
+    const product = await response.json();
+    return product;
+  }
+  catch {
+    console.log("Failed to fetch product!");
+    return null;
+  }
+}
+
+// for SSG, static params generation, fetch products in advance
 export async function generateStaticParams() {
   const res = await fetch("https://fakestoreapi.com/products");
   const products: Product[] = await res.json();
@@ -21,116 +44,53 @@ export async function generateStaticParams() {
 }
 export const revalidate = 3600; // revalidate every 1 hour (optional, for ISR)
 
-const ProductPage = async ({params}) => {
-  const { id } = await params;
-  // console.log(id);
-  const response = await fetch(
-    `https://fakestoreapi.com/products/${id}`,
-    {
-      method: "GET",
-    }
-  );
 
-  const product = await response.json();
-  // get product by id, and then render the product
-  console.log(product);
- 
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const resolvedParams = await params;
+  const product = await getProduct(resolvedParams.id);
 
-  if (!product) {
-    return (
-      <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-slate-600 text-lg">Loading product details...</p>
-        </div>
-      </div>
-    );
+  if(!product){
+    return {
+      title: 'Product not found',
+      description: "This product does not exist",
+    };
   }
 
-  return (
-    <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Back Button */}
-        <Link
-          href="/products"
-          className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-8 font-medium"
-        >
-          Back to Products
-        </Link>
+  return {
+    title: product.title,
+    description: product.description,
+    openGraph: {
+      title: product.title,
+      description: product.description,
+      images: [
+        {
+          url: product.image,
+          width: 400,
+          height: 400,
+           alt: product.title,
+        },
+      ]
+    }
+  }
+}
 
-        {/* Product Card */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
-            {/* Image Section */}
-            <div className="flex items-center justify-center bg-linear-to-b from-slate-50 to-slate-100 rounded-xl p-6">
-              <img
-                src={product.image}
-                alt={product.title}
-                className="max-h-96 object-contain hover:scale-105 transition-transform duration-300"
-              />
-            </div>
+// const ProductPage = async ({params}) => {
+// const { id } = await params;
+// console.log(id);
+const ProductPage = async ({ params }: { params: { id: string } }) => {
 
-            {/* Content Section */}
-            <div className="flex flex-col justify-between">
-              {/* Category Badge */}
-              <div className="mb-4">
-                <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">
-                  {product.category}
-                </span>
-              </div>
+  const { id } = await params;
+  const product = await getProduct(id);
+  // get product by id, and then render the product
+  console.log(product);
 
-              {/* Title */}
-              <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 leading-tight">
-                {product.title}
-              </h1>
 
-              {/* Rating */}
-              <div className="flex items-center mb-6 pb-6 border-b border-slate-200">
-                <div className="flex items-center">
-                  <span className="text-2xl font-bold text-yellow-500">★</span>
-                  <span className="ml-2 text-xl font-semibold text-slate-900">
-                    {product.rating.rate}
-                  </span>
-                  <span className="ml-2 text-slate-600">
-                    ({product.rating.count} reviews)
-                  </span>
-                </div>
-              </div>
+  if (!product) {
+    notFound();
+  }
+  // moving all the jsx to productDetailCLient as it is a server component
 
-              {/* Price */}
-              <div className="mb-6">
-                <p className="text-slate-600 text-sm font-medium mb-2">Price</p>
-                <p className="text-4xl font-bold text-slate-900">
-                  ${product.price}
-                </p>
-              </div>
-
-              {/* Description */}
-              <div className="mb-8">
-                <p className="text-slate-600 text-sm font-medium mb-3">
-                  About this product
-                </p>
-                <p className="text-slate-700 leading-relaxed text-base">
-                  {product.description}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <ProductDetailClient product={product} />
 };
 
 export default memo(ProductPage);
-
-// {
-//     "id": 1,
-//     "title": "Fjallraven - Foldsack No. 1 Backpack, Fits 15 Laptops",
-//     "price": 109.95,
-//     "description": "Your perfect pack for everyday use and walks in the forest. Stash your laptop (up to 15 inches) in the padded sleeve, your everyday",
-//     "category": "men's clothing",
-//     "image": "https://fakestoreapi.com/img/81fPKd-2AYL._AC_SL1500_t.png",
-//     "rating": {
-//       "rate": 3.9,
-//       "count": 120
-//     }
